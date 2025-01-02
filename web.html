@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Expense Tracker and Notebook</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f9;
+        }
+        header {
+            background-color: #4CAF50;
+            color: white;
+            text-align: center;
+            padding: 1rem;
+            position: relative;
+        }
+        .profile-img {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 20px;
+            transform: translateY(-50%);
+        }
+        .container {
+            width: 80%;
+            margin: 2rem auto;
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        form {
+            margin-bottom: 2rem;
+        }
+        form input, form select, form button, form textarea {
+            margin: 0.5rem 0;
+            padding: 0.8rem;
+            width: 100%;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        table th, table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        table th {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .delete-btn, .edit-btn, .clear-btn {
+            background-color: #f44336;
+            color: white;
+            border: none;
+            padding: 0.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .delete-btn:hover, .edit-btn:hover, .clear-btn:hover {
+            background-color: #d32f2f;
+        }
+        .print-btn {
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            padding: 0.8rem 1.2rem;
+            border-radius: 4px;
+            cursor: pointer;
+            display: block;
+            margin: 1rem auto;
+            text-align: center;
+        }
+        .print-btn:hover {
+            background-color: #1976D2;
+        }
+        .total-amount {
+            font-size: 1.2rem;
+            margin-top: 1rem;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Expense Tracker and Notebook</h1>
+        <img src="profile.jpg" alt="Profile Image" class="profile-img">
+    </header>
+    <div class="container">
+        <!-- Expense Tracker Section -->
+        <form id="expense-form">
+            <h2>Add Expense</h2>
+            <input type="date" id="date" required>
+            <input type="text" id="category" placeholder="Category (e.g., Food, Travel)" required>
+            <input type="text" id="amount" placeholder="Amount (e.g., 2*3, 8+5)" required>
+            <textarea id="note" placeholder="Add a note (optional)" rows="3"></textarea>
+            <button type="submit">Add Expense</button>
+        </form>
+
+        <h2>Expense Summary</h2>
+        <table id="expense-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Category</th>
+                    <th>Amount</th>
+                    <th>Note</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Expenses will appear here -->
+            </tbody>
+        </table>
+        
+        <div class="total-amount">
+            <p>Total Amount for This Month: ₹<span id="total-amount">0</span></p>
+        </div>
+
+        <button class="print-btn" onclick="window.print()">Print Report</button>
+
+        <!-- Notebook Section -->
+        <form id="notebook-form">
+            <h2>Notebook</h2>
+            <input type="date" id="notebook-date" required>
+            <textarea id="notebook-note" placeholder="Write your note here..." rows="5" required></textarea>
+            <button type="submit">Add Note</button>
+        </form>
+        <h2>Notebook Entries</h2>
+        <table id="notebook-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Note</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Notebook entries will appear here -->
+            </tbody>
+        </table>
+
+        <!-- Clear All Data Button -->
+        <button class="clear-btn" onclick="clearAllData()">Clear All Data</button>
+    </div>
+
+    <script>
+        // Expense Tracker Logic
+        const expenseForm = document.getElementById('expense-form');
+        const expenseTableBody = document.querySelector('#expense-table tbody');
+        const expenses = JSON.parse(localStorage.getItem('expenses')) || [];
+        let editingIndex = -1;
+
+        function renderExpenses() {
+            expenseTableBody.innerHTML = '';
+            let totalAmount = 0;
+            expenses.forEach((expense, index) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${expense.date}</td>
+                    <td>${expense.category}</td>
+                    <td>₹${expense.amount}</td>
+                    <td>${expense.note}</td>
+                    <td>
+                        <button class="edit-btn" onclick="editExpense(${index})">Edit</button>
+                        <button class="delete-btn" onclick="deleteExpense(${index})">Delete</button>
+                    </td>
+                `;
+                expenseTableBody.appendChild(row);
+                totalAmount += parseFloat(expense.amount);
+            });
+            document.getElementById('total-amount').textContent = totalAmount.toFixed(2);
+        }
+
+        expenseForm.addEventListener('submit', function(event) {
+            event.preventDefault();
+
+            const date = document.getElementById('date').value;
+            const category = document.getElementById('category').value;
+            const amountInput = document.getElementById('amount').value; // Expression like '2+3'
+            const note = document.getElementById('note').value;
+
+            let amount;
+            try {
+                amount = eval(amountInput); // Evaluate the expression (e.g., 2+3 becomes 5)
+                if (isNaN(amount)) {
+                    throw new Error('Invalid amount');
+                }
+            } catch (error) {
+                alert('Invalid amount expression. Please enter a valid mathematical expression.');
+                return; // Prevent further processing
+            }
+
+            const expense = { date, category, amount, note };
+
+            if (editingIndex === -1) {
+                expenses.push(expense);
+            } else {
+                expenses[editingIndex] = expense;
+                editingIndex = -1;
+            }
+
+            localStorage.setItem('expenses', JSON.stringify(expenses));
+            renderExpenses();
+            expenseForm.reset();
+        });
+
+        function deleteExpense(index) {
+            expenses.splice(index, 1);
+            localStorage.setItem('expenses', JSON.stringify(expenses));
+            renderExpenses();
+        }
+
+        function editExpense(index) {
+            const expense = expenses[index];
+            document.getElementById('date').value = expense.date;
+            document.getElementById('category').value = expense.category;
+            document.getElementById('amount').value = expense.amount;
+            document.getElementById('note').value = expense.note;
+            editingIndex = index;
+        }
+
+        document.addEventListener('DOMContentLoaded', renderExpenses);
+
+        // Notebook Logic
+        const notebookForm = document.getElementById('notebook-form');
+        const notebookTableBody = document.querySelector('#notebook-table tbody');
+        const notebookEntries = JSON.parse(localStorage.getItem('notebookEntries')) || [];
+        let editingNotebookIndex = -1;
+
+        function renderNotebookEntries() {
+            notebookTableBody.innerHTML = '';
+            notebookEntries.forEach((entry, index) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${entry.date}</td>
+                    <td>${entry.note}</td>
+                    <td>
+                        <button class="edit-btn" onclick="editNotebookEntry(${index})">Edit</button>
+                        <button class="delete-btn" onclick="deleteNotebookEntry(${index})">Delete</button>
+                    </td>
+                `;
+                notebookTableBody.appendChild(row);
+            });
+        }
+
+        notebookForm.addEventListener('submit', function(event) {
+            event.preventDefault();
+            const date = document.getElementById('notebook-date').value;
+            const note = document.getElementById('notebook-note').value;
+            const notebookEntry = { date, note };
+
+            if (editingNotebookIndex === -1) {
+                notebookEntries.push(notebookEntry);
+            } else {
+                notebookEntries[editingNotebookIndex] = notebookEntry;
+                editingNotebookIndex = -1;
+            }
+
+            localStorage.setItem('notebookEntries', JSON.stringify(notebookEntries));
+            renderNotebookEntries();
+            notebookForm.reset();
+        });
+
+        function deleteNotebookEntry(index) {
+            notebookEntries.splice(index, 1);
+            localStorage.setItem('notebookEntries', JSON.stringify(notebookEntries));
+            renderNotebookEntries();
+        }
+
+        function editNotebookEntry(index) {
+            const entry = notebookEntries[index];
+            document.getElementById('notebook-date').value = entry.date;
+            document.getElementById('notebook-note').value = entry.note;
+            editingNotebookIndex = index;
+        }
+
+        document.addEventListener('DOMContentLoaded', renderNotebookEntries);
+
+        // Clear All Data
+        function clearAllData() {
+            localStorage.removeItem('expenses');
+            localStorage.removeItem('notebookEntries');
+            expenses.length = 0;
+            notebookEntries.length = 0;
+            renderExpenses();
+            renderNotebookEntries();
+        }
+    </script>
+</body>
+</html>
